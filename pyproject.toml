@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75,<90"]
+requires = ["setuptools==80.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -11,6 +11,12 @@ dependencies = [
   "langgraph==1.2.14",
   "langchain-core==1.6.7",
   "langsmith==0.14.4",
+]
+
+[dependency-groups]
+dev = [
+  "ruff==0.16.10",
+  "mypy==2.4.0",
 ]
 
 [project.scripts]

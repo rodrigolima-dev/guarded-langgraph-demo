@@ -26,18 +26,20 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Install
-        run: python -m pip install -e . ruff==0.16.10 mypy==2.4.0
+        run: |
+          python -m pip install uv==0.12.15
+          uv sync --locked --python ${{ matrix.python-version }}
       - name: Check dependencies
-        run: python -m pip check
+        run: uv pip check
       - name: Lint
-        run: ruff check .
+        run: uv run --locked ruff check .
       - name: Types
-        run: mypy --strict src
+        run: uv run --locked mypy --strict src
       - name: Test
-        run: python -m unittest discover -s tests -v
+        run: uv run --locked python -m unittest discover -s tests -v
       - name: Compile
-        run: python -m compileall -q src
+        run: uv run --locked python -m compileall -q src
       - name: Allowed and denied CLI paths
         run: |
-          guarded-graph tenant-alpha schema
-          guarded-graph tenant-beta report --profile alpha-reader
+          uv run --locked guarded-graph tenant-alpha schema
+          uv run --locked guarded-graph tenant-beta report --profile alpha-reader

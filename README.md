@@ -17,22 +17,20 @@ The repository uses `StateGraph` for explicit routing, LangChain `Document` obje
 
 ## Run locally
 
-Use Python 3.12–3.14. No environment variables or account are needed.
+Use Python 3.12–3.14 and uv 0.12.15. No environment variables or account are needed. The committed `uv.lock` pins runtime and development dependencies for the supported Python versions.
 
 ```sh
-python -m venv .venv
+python -m pip install uv==0.12.15
+uv sync --locked
 ```
-
-Activate the environment (`.venv\Scripts\Activate.ps1` on PowerShell or `source .venv/bin/activate` on macOS/Linux), then:
 
 ```sh
-python -m pip install -e .
-guarded-graph tenant-alpha schema
-guarded-graph tenant-beta report --profile alpha-reader
-python -m unittest discover -s tests -v
+uv run --locked guarded-graph tenant-alpha schema
+uv run --locked guarded-graph tenant-beta report --profile alpha-reader
+uv run --locked python -m unittest discover -s tests -v
 ```
 
-For the full local checks, also run `ruff check .`, `mypy --strict src`, `python -m pip check`, and `python -m compileall -q src` after installing the pinned lint and type-check tools in [CONTRIBUTING.md](CONTRIBUTING.md).
+For the full local checks, also run `uv run --locked ruff check .`, `uv run --locked mypy --strict src`, `uv pip check`, and `uv run --locked python -m compileall -q src`.
 
 The first command returns a synthetic source. The second returns `denied`: the sample reader belongs to `tenant-alpha` and cannot select `tenant-beta`. To see the other allowed path, run `guarded-graph tenant-beta report --profile beta-reader`.
 
