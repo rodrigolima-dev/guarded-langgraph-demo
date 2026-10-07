@@ -32,6 +32,8 @@ guarded-graph tenant-beta report --profile alpha-reader
 python -m unittest discover -s tests -v
 ```
 
+For the full local checks, also run `ruff check .`, `mypy --strict src`, `python -m pip check`, and `python -m compileall -q src` after installing the pinned lint and type-check tools in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 The first command returns a synthetic source. The second returns `denied`: the sample reader belongs to `tenant-alpha` and cannot select `tenant-beta`. To see the other allowed path, run `guarded-graph tenant-beta report --profile beta-reader`.
 
 ## Engineering choices

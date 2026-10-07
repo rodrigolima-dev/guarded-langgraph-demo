@@ -5,8 +5,9 @@ Keep examples offline and fictional. Changes to authorization, retrieval, or res
 Before opening a pull request:
 
 ```sh
-python -m pip install -e . ruff==0.16.10
+python -m pip install -e . ruff==0.16.10 mypy==2.4.0
 ruff check .
+mypy --strict src
 python -m unittest discover -s tests -v
 python -m pip check
 python -m compileall -q src

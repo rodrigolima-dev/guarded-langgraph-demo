@@ -4,6 +4,7 @@ from typing import TypedDict
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable, RunnableLambda
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from langsmith import tracing_context
 
 from .models import Principal
@@ -29,7 +30,7 @@ def _render_sample_answer(documents: tuple[Document, ...]) -> str:
 def build_graph(
     corpus: LocalCorpus,
     responder: Runnable[tuple[Document, ...], str] | None = None,
-):
+) -> CompiledStateGraph[GraphState, None, GraphState, GraphState]:
     """Compile a graph that gates access before retrieval and response."""
 
     response_step = responder or RunnableLambda(_render_sample_answer)
@@ -96,7 +97,12 @@ def build_graph(
     return graph.compile()
 
 
-def run_query(graph, principal: Principal, tenant_id: str, query: str) -> dict[str, object]:
+def run_query(
+    graph: CompiledStateGraph[GraphState, None, GraphState, GraphState],
+    principal: Principal,
+    tenant_id: str,
+    query: str,
+) -> dict[str, object]:
     """Expose a small response; do not return the principal or graph state."""
 
     with tracing_context(enabled=False):
