@@ -1,0 +1,21 @@
+name: Bug report
+description: Report a reproducible problem using fictional inputs.
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: Describe the behavior without including private data or secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the command, fictional input, expected result, and actual result.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Python version

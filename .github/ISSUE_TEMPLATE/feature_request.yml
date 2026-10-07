@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest a small, testable extension to the offline example.
+body:
+  - type: textarea
+    id: value
+    attributes:
+      label: Intended behavior
+      description: Describe the use case and the observable result using fictional data.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Trust boundaries
+      description: Explain how authorization, tenant scope, and network behavior would change.
+    validations:
+      required: true
