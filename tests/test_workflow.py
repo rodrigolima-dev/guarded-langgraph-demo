@@ -118,6 +118,18 @@ class GuardedGraphTests(unittest.TestCase):
 
         self.assertEqual(result, {"status": "retrieval_error", "answer": "", "sources": []})
 
+    def test_tenant_catalog_failure_fails_closed(self):
+        class BrokenCatalog:
+            def has_tenant(self, tenant_id):
+                raise RuntimeError("synthetic catalog detail")
+
+            def retrieve(self, tenant_id, query, limit=3):
+                raise AssertionError("retrieval must not run")
+
+        result = run_query(build_graph(BrokenCatalog()), self.alpha, "tenant-alpha", "schema")
+
+        self.assertEqual(result, {"status": "authorization_error", "answer": "", "sources": []})
+
     def test_second_tenant_has_its_own_positive_path(self):
         beta = Principal("sample-beta-user", frozenset({"tenant-beta"}))
         result = run_query(self.graph, beta, "tenant-beta", "report")

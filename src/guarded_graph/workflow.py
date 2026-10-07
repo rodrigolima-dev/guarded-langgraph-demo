@@ -54,7 +54,13 @@ def build_graph(
     def authorize(state: GraphState) -> GraphState:
         tenant_id = state["tenant_id"]
         principal = state["principal"]
-        if tenant_id not in principal.tenant_ids or not corpus.has_tenant(tenant_id):
+        if tenant_id not in principal.tenant_ids:
+            return {"status": "denied"}
+        try:
+            known_tenant = corpus.has_tenant(tenant_id)
+        except Exception:  # noqa: BLE001 - catalog failure must not permit retrieval
+            return {"status": "authorization_error"}
+        if not known_tenant:
             return {"status": "denied"}
         return {"status": "authorized"}
 

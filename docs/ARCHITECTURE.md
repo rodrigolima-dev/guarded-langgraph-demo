@@ -5,7 +5,7 @@ The example separates caller identity, authorization, retrieval, and response ge
 ## Data flow
 
 1. `validate` rejects malformed tenant names, blank or oversized queries, and control characters.
-2. `authorize` checks that the tenant exists in the corpus and appears in the principal's membership set.
+2. `authorize` checks principal membership before looking up the tenant. Unknown tenants and catalog failures stop before retrieval.
 3. `retrieve` reads only the selected tenant's in-memory bucket, then accepts documents whose metadata matches that tenant and whose state is exactly `published=True`. A second check in the graph enforces the same boundary before response generation.
 4. `respond` invokes a LangChain `Runnable` with at most three scoped `Document` objects. The default runnable renders their synthetic text with source IDs. Errors return an empty response.
 5. `run_query` returns only `status`, `answer`, and `sources`; it never returns the principal or internal graph state.
