@@ -123,6 +123,13 @@ def build_graph(
             return {"status": "response_error", "answer": ""}
         return {"status": "answered", "answer": answer}
 
+    def after_evaluate(state: GraphState) -> str:
+        if state["status"] == "ready":
+            return "respond"
+        if state["status"] == "retry":
+            return "retrieve"
+        return END
+
     graph = StateGraph(GraphState)
     graph.add_node("validate", validate)
     graph.add_node("authorize", authorize)
@@ -133,10 +140,7 @@ def build_graph(
     graph.add_conditional_edges("validate", lambda state: "authorize" if state["status"] == "valid" else END)
     graph.add_conditional_edges("authorize", lambda state: "retrieve" if state["status"] == "authorized" else END)
     graph.add_conditional_edges("retrieve", lambda state: "evaluate" if state["status"] == "retrieved" else END)
-    graph.add_conditional_edges(
-        "evaluate",
-        lambda state: "respond" if state["status"] == "ready" else "retrieve" if state["status"] == "retry" else END,
-    )
+    graph.add_conditional_edges("evaluate", after_evaluate)
     graph.add_edge("respond", END)
     return graph.compile()
 
