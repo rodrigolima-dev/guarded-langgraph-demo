@@ -11,7 +11,7 @@ The example separates caller identity, authorization, retrieval, and response ge
 5. `respond` invokes a LangChain `Runnable` with at most three scoped, lexically matched `Document` objects. The default runnable renders their synthetic text with source IDs. Errors return an empty response and do not trigger another read.
 6. `run_query` returns only `status`, `answer`, and `sources`; it never returns the principal or internal graph state.
 
-The authorization edge is before every retrieval path. The retry can change the search terms but never the tenant ID or principal. Neither a model nor a query string can select another tenant's bucket by itself. Tests assert that denied requests never read the catalog or documents, that a retry is capped at two reads, and that misfiled documents never reach the responder.
+Authorization runs once per graph invocation before any retrieval. The retry can change the search terms but uses the same tenant ID and principal; it does not recheck a membership change during the invocation. Neither a model nor a query string can select another tenant's bucket by itself. Tests assert that denied requests never read the catalog or documents, that a retry is capped at two reads, and that misfiled documents never reach the responder. The validation and error paths clear answer and evidence from the returned graph state.
 
 ## Trust boundary
 

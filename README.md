@@ -50,7 +50,7 @@ The first command returns a synthetic source. The `alerts` query has no exact le
 | Response | Receives only allowed matches; errors return no answer or sources | `test_responder_receives_only_bounded_scoped_documents` |
 | Output | Exposes status, answer, and source IDs; omits principal and graph state | `test_authorized_query_returns_only_scoped_published_sources` |
 
-See [architecture](docs/ARCHITECTURE.md) for the graph and trust boundaries, and [security](SECURITY.md) for the example's limits. The retry removes a trailing `s` from eligible search terms; it is an illustrative lexical fallback, not semantic retrieval or an AI planning loop. The local CLI supplies fictional principals. In a real application, an authenticated server would create the principal; a caller-selected profile is **not authentication**. The in-memory filter is an educational boundary, not a database authorization policy or proof of production isolation. This project does not execute actions or send messages.
+See [architecture](docs/ARCHITECTURE.md) for the graph and trust boundaries, and [security](SECURITY.md) for the example's limits. The retry removes a trailing `s` from eligible search terms; it is an illustrative lexical fallback, not semantic retrieval or an AI planning loop. Membership is checked once per invocation, and both reads use the same tenant. The local CLI supplies fictional principals. In a real application, an authenticated server would create the principal; a caller-selected profile is **not authentication**. The in-memory filter is an educational boundary, not a database authorization policy or proof of production isolation. This project does not execute actions or send messages.
 
 ## Resumo em português
 

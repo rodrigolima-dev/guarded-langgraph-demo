@@ -247,6 +247,47 @@ class GuardedGraphTests(unittest.TestCase):
 
         self.assertEqual(result, {"status": "response_error", "answer": "", "sources": []})
 
+    def test_internal_state_clears_evidence_after_responder_failure_or_empty_answer(self):
+        def broken_response(documents):
+            raise RuntimeError("synthetic failure")
+
+        for responder in (broken_response, lambda documents: ""):
+            with self.subTest(responder=responder):
+                graph = build_graph(sample_corpus(), RunnableLambda(responder))
+                with tracing_context(enabled=False):
+                    state = graph.invoke({
+                        "principal": self.alpha,
+                        "tenant_id": "tenant-alpha",
+                        "query": "schema",
+                    })
+
+                self.assertEqual(state["status"], "response_error")
+                self.assertEqual(state["answer"], "")
+                self.assertEqual(state["evidence"], ())
+
+    def test_invalid_and_denied_graph_states_discard_caller_supplied_output(self):
+        injected = Document(
+            page_content="A caller supplied document.",
+            metadata={"tenant_id": "tenant-alpha", "source_id": "injected", "published": True},
+        )
+        for tenant_id, query, expected_status in (
+            ("tenant-alpha", " ", "invalid_request"),
+            ("tenant-beta", "reports", "denied"),
+        ):
+            with self.subTest(expected_status=expected_status):
+                with tracing_context(enabled=False):
+                    state = self.graph.invoke({
+                        "principal": self.alpha,
+                        "tenant_id": tenant_id,
+                        "query": query,
+                        "answer": "caller supplied answer",
+                        "evidence": (injected,),
+                    })
+
+                self.assertEqual(state["status"], expected_status)
+                self.assertEqual(state["answer"], "")
+                self.assertEqual(state["evidence"], ())
+
     def test_retrieval_failure_has_no_answer_or_sources(self):
         class BrokenCorpus:
             def has_tenant(self, tenant_id):

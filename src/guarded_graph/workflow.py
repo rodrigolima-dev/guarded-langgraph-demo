@@ -61,13 +61,15 @@ def build_graph(
             or len(query) > 160
             or any(ord(char) < 32 for char in query)
         ):
-            return {"status": "invalid_request"}
+            return {"status": "invalid_request", "evidence": (), "answer": ""}
         clean_query = query.strip()
         return {
             "status": "valid",
             "query": clean_query,
             "search_query": clean_query,
             "retrieval_attempts": 0,
+            "evidence": (),
+            "answer": "",
         }
 
     def authorize(state: GraphState) -> GraphState:
@@ -118,9 +120,9 @@ def build_graph(
         try:
             answer = response_step.invoke(state["evidence"])
         except Exception:  # noqa: BLE001 - fail closed at the replaceable response boundary
-            return {"status": "response_error", "answer": ""}
+            return {"status": "response_error", "answer": "", "evidence": ()}
         if not isinstance(answer, str) or not answer.strip():
-            return {"status": "response_error", "answer": ""}
+            return {"status": "response_error", "answer": "", "evidence": ()}
         return {"status": "answered", "answer": answer}
 
     def after_evaluate(state: GraphState) -> str:
