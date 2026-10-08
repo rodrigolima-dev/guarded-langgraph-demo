@@ -8,13 +8,15 @@ from langgraph.graph.state import CompiledStateGraph
 from langsmith import tracing_context
 
 from .models import Principal
-from .retrieval import LocalCorpus
+from .retrieval import LocalCorpus, _tokens
 
 
 class GraphState(TypedDict, total=False):
     principal: Principal
     tenant_id: str
     query: str
+    search_query: str
+    retrieval_attempts: int
     status: str
     evidence: tuple[Document, ...]
     answer: str
@@ -25,6 +27,17 @@ def _render_sample_answer(documents: tuple[Document, ...]) -> str:
         f"{document.page_content} [{document.metadata['source_id']}]"
         for document in documents
     )
+
+
+def _singular_retry(query: str) -> str | None:
+    """Offer one predictable lexical fallback for plural search terms."""
+
+    words = re.findall(r"[a-z0-9]+", query.lower())
+    normalized = [
+        word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
+        for word in words
+    ]
+    return " ".join(normalized) if normalized != words else None
 
 
 def build_graph(
@@ -48,8 +61,16 @@ def build_graph(
             or len(query) > 160
             or any(ord(char) < 32 for char in query)
         ):
-            return {"status": "invalid_request"}
-        return {"status": "valid", "query": query.strip()}
+            return {"status": "invalid_request", "evidence": (), "answer": ""}
+        clean_query = query.strip()
+        return {
+            "status": "valid",
+            "query": clean_query,
+            "search_query": clean_query,
+            "retrieval_attempts": 0,
+            "evidence": (),
+            "answer": "",
+        }
 
     def authorize(state: GraphState) -> GraphState:
         tenant_id = state["tenant_id"]
@@ -66,39 +87,62 @@ def build_graph(
 
     def retrieve(state: GraphState) -> GraphState:
         tenant_id = state["tenant_id"]
+        attempt = state["retrieval_attempts"] + 1
         try:
-            documents = corpus.retrieve(tenant_id, state["query"], limit=3)
+            documents = corpus.retrieve(tenant_id, state["search_query"], limit=3)
+            evidence = tuple(
+                document
+                for document in documents
+                if isinstance(document, Document)
+                and document.metadata.get("tenant_id") == tenant_id
+                and document.metadata.get("published") is True
+                and isinstance(document.metadata.get("source_id"), str)
+                and document.metadata["source_id"]
+            )[:3]
         except Exception:  # noqa: BLE001 - hide retrieval internals at the data boundary
-            return {"status": "retrieval_error", "evidence": ()}
-        evidence = tuple(
-            document
-            for document in documents
-            if document.metadata.get("tenant_id") == tenant_id
-            and document.metadata.get("published") is True
-            and isinstance(document.metadata.get("source_id"), str)
-        )[:3]
-        if not evidence:
-            return {"status": "no_context", "evidence": ()}
-        return {"status": "retrieved", "evidence": evidence}
+            return {"status": "retrieval_error", "evidence": (), "retrieval_attempts": attempt}
+        return {"status": "retrieved", "evidence": evidence, "retrieval_attempts": attempt}
+
+    def evaluate(state: GraphState) -> GraphState:
+        terms = _tokens(state["search_query"])
+        relevant = tuple(
+            document for document in state["evidence"] if terms & _tokens(document.page_content)
+        )
+        if relevant:
+            return {"status": "ready", "evidence": relevant}
+        if state["retrieval_attempts"] < 2:
+            retry_query = _singular_retry(state["query"])
+            if retry_query is not None and retry_query != state["search_query"]:
+                return {"status": "retry", "search_query": retry_query, "evidence": ()}
+        return {"status": "no_context", "evidence": ()}
 
     def respond(state: GraphState) -> GraphState:
         try:
             answer = response_step.invoke(state["evidence"])
         except Exception:  # noqa: BLE001 - fail closed at the replaceable response boundary
-            return {"status": "response_error", "answer": ""}
+            return {"status": "response_error", "answer": "", "evidence": ()}
         if not isinstance(answer, str) or not answer.strip():
-            return {"status": "response_error", "answer": ""}
+            return {"status": "response_error", "answer": "", "evidence": ()}
         return {"status": "answered", "answer": answer}
+
+    def after_evaluate(state: GraphState) -> str:
+        if state["status"] == "ready":
+            return "respond"
+        if state["status"] == "retry":
+            return "retrieve"
+        return END
 
     graph = StateGraph(GraphState)
     graph.add_node("validate", validate)
     graph.add_node("authorize", authorize)
     graph.add_node("retrieve", retrieve)
+    graph.add_node("evaluate", evaluate)
     graph.add_node("respond", respond)
     graph.add_edge(START, "validate")
     graph.add_conditional_edges("validate", lambda state: "authorize" if state["status"] == "valid" else END)
     graph.add_conditional_edges("authorize", lambda state: "retrieve" if state["status"] == "authorized" else END)
-    graph.add_conditional_edges("retrieve", lambda state: "respond" if state["status"] == "retrieved" else END)
+    graph.add_conditional_edges("retrieve", lambda state: "evaluate" if state["status"] == "retrieved" else END)
+    graph.add_conditional_edges("evaluate", after_evaluate)
     graph.add_edge("respond", END)
     return graph.compile()
 
